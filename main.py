@@ -1,67 +1,40 @@
+from operator import mod
+from turtle import Vec2D, pos
 import pygame
 import math
 import copy
 import time
+from utils import *
 
-class vec3d:
-    def __init__(self,x = 0,y = 0,z = 0):
-        self.x = x
-        self.y = y
-        self.z = z
-
-class triangulo:
-    def __init__(self):
-        self.p = [vec3d() for i in range(3)]
-     
-class mesh():
-    def __init__(self):
-        self.tris = []
-
-class mat4x4():
-    def __init__(self):
-        self.m = [[0 for j in range(4)] for i in range(4)]
-
-def MultiplyMatrixVector (i,o,m):
-    o.x = i.x * m.m[0][0] + i.y * m.m[1][0] + i.z * m.m[2][0] + m.m[3][0]
-    o.y = i.x * m.m[0][1] + i.y * m.m[1][1] + i.z * m.m[2][1] + m.m[3][1]
-    o.z = i.x * m.m[0][2] + i.y * m.m[1][2] + i.z * m.m[2][2] + m.m[3][2]
-
-    w = i.x * m.m[0][3] + i.y * m.m[1][3] + i.z * m.m[2][3] + m.m[3][3]
-
-    if(w != 0):
-        o.x = o.x/w
-        o.y = o.y/w
-        o.z = o.z/w
 
 def DrawTriangle(x1,y1,x2,y2,x3,y3,color = (255,255,255)):
     pygame.draw.line(screen,color,(x1,y1),(x2,y2))
     pygame.draw.line(screen,color,(x2,y2),(x3,y3))
     pygame.draw.line(screen,color,(x3,y3),(x1,y1))
 
+def FillTriangle(x1,y1,x2,y2,x3,y3,color = (255,255,255)):
+    try:
+        pygame.draw.polygon(screen,color,((x1,y1),(x2,y2),(x2,y2),(x3,y3),(x3,y3),(x1,y1)))
+    except:
+        print(color)
+
+def ordenacao_vetor(e):
+    return (e.p[0].z+e.p[1].z+e.p[2].z)/3
+
 w = 500
 h = 500
 
-
-## Projeção
-fNear = 0.1
-fFar = 1000
-fFov = 90
-fAspectRatio = h/w
-fFovRad = 1/(math.tan(fFov*0.5/180*math.pi))
+linha = False
+face = True
 
 
-matProj = mat4x4()
-matProj.m[0][0] = fAspectRatio*fFovRad
-matProj.m[1][1] = fFovRad
-matProj.m[2][2] = fFar/(fFar - fNear)
-matProj.m[3][2] = (-fFar*fNear)/(fFar - fNear)
-matProj.m[2][3] = 1
-matProj.m[3][3] = 0
+matProj = Matrix_MakeProjection(90,h/w, 0.1,1000)
 
-matRotZ = mat4x4()
-matRotX = mat4x4()
+vCamera = vec3d()
+vLookDir = vec3d()
 
-fTheta = 1
+fYaw = 0
+fTheta = 0
 
 cubo = [
 		[ [0.0 , 0.0 , 0.0],    [0.0 , 1.0 , 0.0],    [1.0 , 1.0 , 0.0]  ],
@@ -84,13 +57,13 @@ cubo = [
 ]
 
 meshCube = mesh()
-
-for v in cubo:
-    triangulo1 = triangulo()
-    for index,f in enumerate(v):
-        triangulo1.p[index ]= vec3d(f[0],f[1],f[2])
-        print(f)
-    meshCube.tris.append(triangulo1)
+meshCube.LoadFromObjectFile('nave.obj')
+#for v in cubo:
+#    triangulo1 = triangulo()
+#    for index,f in enumerate(v):
+#        triangulo1.p[index ]= vec3d(f[0],f[1],f[2])
+#        print(f)
+#    meshCube.tris.append(triangulo1)
     
 
 pygame.init()
@@ -99,7 +72,6 @@ pygame.init()
 # Set up the drawing window
 
 screen = pygame.display.set_mode([w, h])
-
 
 # Run until the user asks to quit
 
@@ -116,78 +88,154 @@ while running:
         if event.type == pygame.QUIT:
 
             running = False
+        
+        vForward = Vector_Mul(vLookDir,8*((time.time()-sec)))
+        mover = False
+        tecla = -1
+
+        if event.type == pygame.KEYDOWN :
+            if event.key == pygame.K_UP:
+                vCamera.y = vCamera.y -4*((time.time()-sec))
+            if event.key == pygame.K_RIGHT:
+                vCamera.x = vCamera.x +4*((time.time()-sec))
+            if event.key == pygame.K_DOWN:
+                vCamera.y = vCamera.y +4*((time.time()-sec))
+            if event.key == pygame.K_LEFT:
+                vCamera.x = vCamera.x -4*((time.time()-sec))
+            mover = True
+            tecla = event.key
+        
+        if event.type == pygame.KEYUP :
+            mover = False
+
+        if(mover):
+            if tecla == ord('z'):
+                linha = not linha
+            if tecla == ord('x'):
+                face = not face
+
+            if tecla == ord('a'):
+                fYaw = fYaw - 2*((time.time()-sec))
+            if tecla == ord('d'):
+                fYaw = fYaw + 2*((time.time()-sec))
+            if tecla == ord('w'):
+                vCamera = Vector_Add(vCamera, vForward)
+            if tecla == ord('s'):
+                vCamera = Vector_Sub(vCamera, vForward)
+
+            
 
 
     # Fill the background with white
-    screen.fill((255, 255, 255))
-    
-    fTheta += 1 * (time.time()-sec)
+    screen.fill((0, 0, 0))
+    if(time.time()!=sec):  
+        print(1/(time.time()-sec))
+    #fTheta += 1 * (time.time()-sec)
     sec = time.time()
+
     # Rotation Z
-    matRotZ.m[0][0] = math.cos(fTheta)
-    matRotZ.m[0][1] = math.sin(fTheta)
-    matRotZ.m[1][0] = -math.sin(fTheta)
-    matRotZ.m[1][1] = math.cos(fTheta)
-    matRotZ.m[2][2] = 1
-    matRotZ.m[3][3] = 1
+    matRotZ = Matrix_MakeRotationZ(fTheta*0.5)
 
     # Rotation X
-    matRotX.m[0][0] = 1
-    matRotX.m[1][1] = math.cos(fTheta * 0.5)
-    matRotX.m[1][2] = math.sin(fTheta * 0.5)
-    matRotX.m[2][1] = -math.sin(fTheta * 0.5)
-    matRotX.m[2][2] = math.cos(fTheta * 0.5)
-    matRotX.m[3][3] = 1
+    matRotX = Matrix_MakeRotationX(fTheta)
+
+    # Translate
+    matTrans = Matrix_MakeTranslation(0,0,5)
+
+    matWorld = Matrix_MakeIdentity()
+    matWorld = Matrix_MultiplyMatrix(matRotZ,matRotX)
+    matWorld = Matrix_MultiplyMatrix(matWorld, matTrans)
+    
+    vUp          = vec3d(0,1,0)
+    vTarget      = vec3d(0,0,1)
+    matCameraRot = Matrix_MakeRotationY(fYaw)
+    vLookDir     = Matrix_MultiplyVector(matCameraRot,vTarget)
+    vTarget      = Vector_Add(vCamera,vLookDir)
+
+    matCamera = Matrix_PointAt(vCamera,vTarget,vUp)
+    matView = Matrix_QuickInverse(matCamera)
+
+    triangulos_to_render = []
 
     # Draw a solid blue circle in the center
     for tri in meshCube.tris:
 
         triProjected    = triangulo()
-        triTranslado    = triangulo()
-        triRotacionaZ   = triangulo()
-        triRotacionaZX  = triangulo()
-
-        MultiplyMatrixVector(tri.p[0],triRotacionaZ.p[0],matRotZ)
-        MultiplyMatrixVector(tri.p[1],triRotacionaZ.p[1],matRotZ)
-        MultiplyMatrixVector(tri.p[2],triRotacionaZ.p[2],matRotZ)
-
-        MultiplyMatrixVector(triRotacionaZ.p[0],triRotacionaZX.p[0],matRotX)
-        MultiplyMatrixVector(triRotacionaZ.p[1],triRotacionaZX.p[1],matRotX)
-        MultiplyMatrixVector(triRotacionaZ.p[2],triRotacionaZX.p[2],matRotX)
-
-        triTranslado = copy.deepcopy(triRotacionaZX)
+        triTransformado = triangulo()
+        triViewed       = triangulo()
         
-        triTranslado.p[0].z = triRotacionaZX.p[0].z +5
-        triTranslado.p[1].z = triRotacionaZX.p[1].z +5
-        triTranslado.p[2].z = triRotacionaZX.p[2].z +5
+        triTransformado.p[0] = Matrix_MultiplyVector(matWorld,tri.p[0])
+        triTransformado.p[1] = Matrix_MultiplyVector(matWorld,tri.p[1])
+        triTransformado.p[2] = Matrix_MultiplyVector(matWorld,tri.p[2])
         
-        MultiplyMatrixVector(triTranslado.p[0],triProjected.p[0],matProj)
-        MultiplyMatrixVector(triTranslado.p[1],triProjected.p[1],matProj)
-        MultiplyMatrixVector(triTranslado.p[2],triProjected.p[2],matProj)
 
-        #modificando a escala
-        triProjected.p[0].x = triProjected.p[0].x + 1
-        triProjected.p[0].y = triProjected.p[0].y + 1
+        line1 = Vector_Sub(triTransformado.p[1],triTransformado.p[0])
+        line2 = Vector_Sub(triTransformado.p[2],triTransformado.p[0])
+        
+        normal = Vector_CrossProduct(line1,line2)
 
-        triProjected.p[1].x = triProjected.p[1].x + 1
-        triProjected.p[1].y = triProjected.p[1].y + 1
+        normal = Vector_Normalise(normal)
 
-        triProjected.p[2].x = triProjected.p[2].x + 1
-        triProjected.p[2].y = triProjected.p[2].y + 1
+        vCameraRay = Vector_Sub(triTransformado.p[0],vCamera)
 
-        triProjected.p[0].x = triProjected.p[0].x*0.5*w
-        triProjected.p[0].y = triProjected.p[0].y*0.5*h
-        triProjected.p[1].x = triProjected.p[1].x*0.5*w
-        triProjected.p[1].y = triProjected.p[1].y*0.5*h
-        triProjected.p[2].x = triProjected.p[2].x*0.5*w
-        triProjected.p[2].y = triProjected.p[2].y*0.5*h
+        if(Vector_DotProduct(normal,vCameraRay)<0) :
+            #iluminação
+            light_direction = vec3d(0,1,-1)
+            light_direction = Vector_Normalise(light_direction)
 
-        DrawTriangle(triProjected.p[0].x,triProjected.p[0].y,
-                     triProjected.p[1].x,triProjected.p[1].y,
-                     triProjected.p[2].x,triProjected.p[2].y,
-                     color=(0,0,0))
-        #pygame.draw.circle(screen, (0, 0, 255), (250, 250), 75)
+            #produto escalar entre a iluminação e a normal da face da figura
+            light_direction_dot_normal = max(0.1,Vector_DotProduct(light_direction,normal))
 
+            triViewed.p[0] = Matrix_MultiplyVector(matView,triTransformado.p[0])
+            triViewed.p[1] = Matrix_MultiplyVector(matView,triTransformado.p[1])
+            triViewed.p[2] = Matrix_MultiplyVector(matView,triTransformado.p[2])
+            triViewed.color = triTransformado.color
+
+            nClippedTriangles = 0
+            clipped = [triangulo() for i in range(2)]
+            nClippedTriangles, clipped[0], clipped[1] = Triangle_ClipAgainstPlane(vec3d(0,0,0.1),vec3d(0,0,1), triViewed)
+
+            for n in range(nClippedTriangles):
+               
+                triProjected.p[0] = Matrix_MultiplyVector(matProj,clipped[n].p[0])
+                triProjected.p[1] = Matrix_MultiplyVector(matProj,clipped[n].p[1])
+                triProjected.p[2] = Matrix_MultiplyVector(matProj,clipped[n].p[2])
+
+                triProjected.p[0] = Vector_Div(triProjected.p[0], triProjected.p[0].w)
+                triProjected.p[1] = Vector_Div(triProjected.p[1], triProjected.p[1].w)
+                triProjected.p[2] = Vector_Div(triProjected.p[2], triProjected.p[2].w)
+                            
+                #modificando a escala
+                vOffsetView = vec3d(1,1,0)
+                triProjected.p[0] = Vector_Add(triProjected.p[0],vOffsetView)
+                triProjected.p[1] = Vector_Add(triProjected.p[1],vOffsetView)
+                triProjected.p[2] = Vector_Add(triProjected.p[2],vOffsetView)
+
+                triProjected.p[0].x = triProjected.p[0].x*0.5*w
+                triProjected.p[0].y = triProjected.p[0].y*0.5*h
+                triProjected.p[1].x = triProjected.p[1].x*0.5*w
+                triProjected.p[1].y = triProjected.p[1].y*0.5*h
+                triProjected.p[2].x = triProjected.p[2].x*0.5*w
+                triProjected.p[2].y = triProjected.p[2].y*0.5*h
+
+                triProjected.color = (255*abs(light_direction_dot_normal) % 255,
+                                255*abs(light_direction_dot_normal) % 255,
+                                255*abs(light_direction_dot_normal) % 255)
+                triangulos_to_render.append(triProjected)
+
+    triangulos_to_render.sort(key = ordenacao_vetor,reverse=True)
+
+    for tritoRaster in triangulos_to_render:
+        if face:
+            FillTriangle(triProjected.p[0].x,h-triProjected.p[0].y,
+                        triProjected.p[1].x,h-triProjected.p[1].y,
+                        triProjected.p[2].x,h-triProjected.p[2].y,
+                        color=triProjected.color)
+        if(linha):
+            DrawTriangle(triProjected.p[0].x,h-triProjected.p[0].y,
+                        triProjected.p[1].x,h-triProjected.p[1].y,
+                        triProjected.p[2].x,h-triProjected.p[2].y,
+                        color=(255,0,0))
 
     # Flip the display
 
