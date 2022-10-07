@@ -34,6 +34,7 @@ class mesh():
                 triangulo1.p[0]=vertices[int(posicoes[1])-1]
                 triangulo1.p[1]=vertices[int(posicoes[2])-1]
                 triangulo1.p[2]=vertices[int(posicoes[3])-1]
+                triangulo1.color =(255,123,3)
                 self.tris.append(triangulo1)
         return True
 
@@ -260,25 +261,27 @@ def Triangle_ClipAgainstPlane( plane_p,  plane_n,  in_tri):
     if(nInsidePointCount == 0):
         return 0, vec3d(),vec3d() 
     if(nInsidePointCount == 3):
-        out_tri1 = copy.copy(in_tri)
+        out_tri1 = copy.deepcopy(in_tri)
+        #out_tri1.color = (255,0,255)
         return 1, out_tri1, vec3d() 
     if(nInsidePointCount == 1 and nOutsidePointCount ==2):
         out_tri1.color = in_tri.color
-
-        out_tri1.p[0] = copy.copy(inside_points[0])
+        #out_tri1.color = (255,0,0)    
+        out_tri1.p[0] = copy.deepcopy(inside_points[0])
         out_tri1.p[1] = Vector_IntersectPlane(plane_p,plane_n,inside_points[0],outside_points[0])
         out_tri1.p[2] = Vector_IntersectPlane(plane_p,plane_n,inside_points[0],outside_points[1])
         return 1, out_tri1, vec3d() 
     if(nInsidePointCount == 2 and nOutsidePointCount == 1):
         out_tri1.color = in_tri.color
         out_tri2.color = in_tri.color
-
-        out_tri1.p[0] = copy.copy(inside_points[0])
-        out_tri1.p[1] = copy.copy(inside_points[1])
+        #out_tri1.color = (0,255,0) 
+        #out_tri2.color = (0,0,255) 
+        out_tri1.p[0] = copy.deepcopy(inside_points[0])
+        out_tri1.p[1] = copy.deepcopy(inside_points[1])
         out_tri1.p[2] = Vector_IntersectPlane(plane_p,plane_n,inside_points[0],outside_points[0])
         
-        out_tri2.p[0] = copy.copy(inside_points[1])
-        out_tri2.p[1] = copy.copy(out_tri1.p[2])
+        out_tri2.p[0] = copy.deepcopy(inside_points[1])
+        out_tri2.p[1] = copy.deepcopy(out_tri1.p[2])
         out_tri2.p[2] = Vector_IntersectPlane(plane_p,plane_n,inside_points[1],outside_points[0])
         return 1, out_tri1, out_tri2 
         
